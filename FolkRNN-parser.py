@@ -322,9 +322,11 @@ def filter_head_body(lines_in_file, yes_to_all):
         
         # Separate header from body
         if not reached_song_body:
-            lines_song_head.append(line)
             if line.split(':')[0].strip().upper() == 'K':  # "K:" marks the end of the header
+                # Remove "clef=treble" from the line
+                line = line.replace('clef=treble', '').strip()
                 reached_song_body = True
+            lines_song_head.append(line)
         else:
             lines_song_body.append(line)
     

@@ -2,11 +2,11 @@
 
 Parses all files in a folder and tries to create a FolkRNN friendly data file
 
-Example:
+Example for our usage:
 ```
-python FolkRNN-parser.py -f downloaded_songs -o dataset.txt --skip_chords --simplify_duplets
+python FolkRNN-parser.py -f ./DutchFolkTunes/ -o new_output.txt --yes_to_all
 ```
-Will produce a file called dataset.txt.
+
 
 Here is all the options:
 ```
