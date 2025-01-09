@@ -112,33 +112,41 @@ def main():
     file_list = get_all_filenames(args.folder_path)
     with open(args.output, 'w') as f:
         for filename in file_list:
-            print("Processing %s" % filename.split('/')[-1])
-            song_head, song_body = parse_file(filename, args.yes_to_all)
-            for song in song_body:
-                pprint(song_body)
-                tokenized_song = tokenize_song(song, args.yes_to_all)
-                if len(tokenized_song) < 50:
-                    print("Skipped song [too short]")
-                    continue
-                songid = ''.join(tokenized_song)
-                if songid in g_unique_songs:
-                    print('Skipped song [duplet]')
-                    continue
-                else:
-                    g_unique_songs[songid] = True
-                if args.save_filename:
-                    f.write("F:%s\n" % filename.split('/')[-1])
-                if args.include_titles:
-                    f.write("T:%s\n" % song_head.get('T', 'No title found'))
-                f.write("%s\n" % song_head.get('L', '[L:1/8]'))
-                f.write("%s\n" % song_head.get('M', '[M:4/4]'))
-                f.write("%s\n" % song_head.get('K', '[K:CMaj]'))
-                if args.save_token_history is not None:
-                    add_token_history(filename, tokenized_song)
-                f.write(' '.join(tokenized_song))
-                f.write('\n\n')
-    if args.save_token_history is not None:
-        save_token_history_to_file(args.save_token_history, args.output)
+            print(f"Processing {filename.split('/')[-1]}")
+            parsed_songs = parse_file(filename, args.yes_to_all)
+            
+            for song_head, song_body in parsed_songs:
+                for song in song_body:
+                    tokenized_song = tokenize_song(song, args.yes_to_all)
+                    if len(tokenized_song) < 50:
+                        print("Skipped song [too short]")
+                        continue
+                    songid = ''.join(tokenized_song)
+                    if songid in g_unique_songs:
+                        print("Skipped song [duplet]")
+                        continue
+                    else:
+                        g_unique_songs[songid] = True
+                    
+                    # Write metadata for each song
+                    if args.save_filename:
+                        f.write(f"F:{filename.split('/')[-1]}\n")
+                    if args.include_titles:
+                        f.write(f"T:{song_head.get('T', 'No title found')}\n")
+                    f.write(f"{song_head.get('L', '[L:1/8]')}\n")
+                    f.write(f"{song_head.get('M', '[M:4/4]')}\n")
+                    f.write(f"{song_head.get('K', '[K:CMaj]')}\n")
+                    
+                    # Save token history if needed
+                    if args.save_token_history is not None:
+                        add_token_history(filename, tokenized_song)
+                    
+                    # Write the song body
+                    f.write(' '.join(tokenized_song))
+                    f.write('\n\n')
+        if args.save_token_history is not None:
+            save_token_history_to_file(args.save_token_history, args.output)
+
 
 def add_token_history(filename, tokens):
     for tok in tokens:
@@ -275,33 +283,56 @@ def filter_song_string(song):
 # Takes a file and parses it into one or more songs
 # depending on if there are more voices in it
 def parse_file(filename, yes_to_all):
-    lines_in_file = open(filename, 'r').readlines()
-    song_head, song_body = filter_head_body(lines_in_file, yes_to_all)
-    return song_head, song_body
+    # Read all lines from the file
+    with open(filename, 'r') as f:
+        lines_in_file = f.readlines()
+    
+    # Split the file into separate songs based on the "X:" field
+    all_songs = []
+    current_song = []
+    for line in lines_in_file:
+        # Detect the start of a new song
+        if line.strip().startswith('X:') and current_song:
+            all_songs.append(current_song)
+            current_song = []
+        current_song.append(line)
+    
+    # Add the last song if it exists
+    if current_song:
+        all_songs.append(current_song)
+    
+    # Process each song to extract its head and body
+    parsed_songs = []
+    for song_lines in all_songs:
+        song_head, song_body = filter_head_body(song_lines, yes_to_all)
+        parsed_songs.append((song_head, song_body))
+    
+    return parsed_songs
 
-# Scans a song and returns a a tuple with
-# ({dict with metainformation}, [voice1, voice2...])
 def filter_head_body(lines_in_file, yes_to_all):
     reached_song_body = False
     lines_song_head = []
     lines_song_body = []
-    #First we filter out the head from the body
+    
+    # First, filter out the head and body
     for line in lines_in_file:
-        #Check for comments and remove them if found
+        # Remove comments
         if line.find('%') > -1:
-            line = line[:line.find('%')]
+            line = line[:line.find('%')].strip()
+        
+        # Separate header from body
         if not reached_song_body:
             lines_song_head.append(line)
-            #Check if we are at the last line before song body
-            #which has the key for the songs
-            if line.split(':')[0].strip().upper() == 'K':
+            if line.split(':')[0].strip().upper() == 'K':  # "K:" marks the end of the header
                 reached_song_body = True
         else:
             lines_song_body.append(line)
-    pprint(lines_song_body)
+    
+    # Process the head and body
     song_head = process_song_head(lines_song_head, yes_to_all)
     song_body = process_song_body(lines_song_body)
     return song_head, song_body
+
 
 # Filters song body into a list, where each entry in the list
 # is a voice in the song

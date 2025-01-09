@@ -10,9 +10,11 @@ def main():
     # http://www.folkwiki.se/pub/cache #
     ####################################
     '''
+    parser = argparse.ArgumentParser()
     parser.add_argument("-u", "--url", help="the url with listing of all songs")
     parser.add_argument("-f", "--filter", help="must be in the filename of the song")
     parser.add_argument("-d", "--download_path", help="folder for downloads")
+    args = parser.parse_args()
 
     print("Checking %s for songs..." % args.url)
     songs_to_download = get_song_list(args.url, args.filter)
