@@ -1,9 +1,9 @@
 *.swp
 *.pyc
-*.txt
+#*.txt
 *.csv
 *.html
-*.abc
+#*.abc
 *.old
 *.midi
 cache
