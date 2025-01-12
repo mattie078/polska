@@ -118,9 +118,9 @@ def main():
             for song_head, song_body in parsed_songs:
                 for song in song_body:
                     tokenized_song = tokenize_song(song, args.yes_to_all)
-                    if len(tokenized_song) < 50:
-                        print("Skipped song [too short]")
-                        continue
+                    # if len(tokenized_song) < 50:
+                    #     print("Skipped song [too short]")
+                    #     continue
                     songid = ''.join(tokenized_song)
                     if songid in g_unique_songs:
                         print("Skipped song [duplet]")
@@ -341,40 +341,46 @@ def filter_head_body(lines_in_file, yes_to_all):
 # Filters song body into a list, where each entry in the list
 # is a voice in the song
 def process_song_body(lines_song_body):
-    #Filter out all W or w lines, because those have
-    #verses
+    # Filter out lines that start with W:, etc.
     filtered_lines = []
-    ignore_chars = ['W:', 'I:', 'Q:', 'N:', 'Z:', 'B:', 'R:', 'S:','P:']
+    ignore_chars = ['W:', 'I:', 'Q:', 'N:', 'Z:', 'B:', 'R:', 'S:', 'P:']
     for line in lines_song_body:
         if len(line) > 0 and line[:2].upper() not in ignore_chars:
             filtered_lines.append(line)
     lines_song_body = filtered_lines
-    # First we check if there even is a V: in there
+
+    # Check if there's any "V:"
     if ''.join(lines_song_body).find('V:') < 0:
-        # No voices
+        # No voices => treat entire file as a single voice
         return [''.join(lines_song_body).replace('\n', '')]
-    # different voices can either be written as
-    # V:<d> on a single line or [V:<d>] on the same line
-    # this matches that plus optional whitespace
-    # saves the digit as the first match
-    # re_voice = re.compile(r"\[?\s?[Vv]\s?:\s?(\d+)\s?\]?")
+
     re_voice = re.compile(r"\[?\s?[Vv]\s?:(.+?)(\]|$)")
     voices = {}
     current_voice = None
+
     for line in lines_song_body:
         voice_match = re_voice.search(line)
         if voice_match:
-            # The first group is the voice digit
-            current_voice = voice_match.group(1)
-            # Filter the line and remove the V tag
+            # The first group is the voice text (e.g. "1", "2", "3", "mymusic" etc.)
+            current_voice = voice_match.group(1).strip()
+            # Remove "V:..." from this line
             line = line[:voice_match.start()] + line[voice_match.end():]
         if current_voice not in voices:
             voices[current_voice] = ''
         voices[current_voice] += line
-    voices_keys = voices.keys()
-    for key in voices_keys:
+
+    # Clean up newlines
+    for key in voices:
         voices[key] = voices[key].replace('\n', '')
-    return voices.values()
+
+    # ---- Only return V:1 if it exists ----
+    if '1' in voices:
+        return [voices['1']]
+    else:
+        # fallback: if there's no "V:1", you can either:
+        # return an empty list or return all voices, etc.
+        # For example, let's just return everything:
+        return voices.values()
 
 # Scans a song head and returns a dict with the meta information
 # if it finds several of the same tag, it appends that string onto
