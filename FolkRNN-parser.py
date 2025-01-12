@@ -267,8 +267,10 @@ def filter_song_string(song):
             ]
     for regex in re_remove_unwanted:
         song, _ = re.subn(regex, '', song)
-    # Now we replace any chars that are needed
-    # The keys are regex to match and value is what to replace with
+    
+    # If you want to remove *all* bracketed text: (this removes duplicate [e b a b] as it is not tokenized)
+    song = re.sub(r'\[.*?\]', '', song)
+    
     re_replace = {
             # All different repeat signs
             re.compile(r":\s?:|:\s?\|\s?:|:\s?\|\s?\|\s?:") : ':| |:',
